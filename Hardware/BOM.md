@@ -27,7 +27,7 @@
 ### D. Output & Indicators
 | Component | Quantity | Footprint | Notes |
 | :--- | :--- | :--- | :--- |
-| **0.96" OLED Display** | 1 | Header Socket | I2C Interface (SSD1306 Driver). |
+| **1.3" OLED Display** | 1 | Header Socket | I2C Interface (SSD1306 Driver). |
 | **LED (3mm/5mm)** | 3 | THT | Status Indicators: Red (Focus), Green (Cam), Blue (Auth). |
 | **Resistor (220Ω)** | 3 | THT (1/4W) | Current limiting for Status LEDs. |
 
