@@ -3,4 +3,3 @@
 **firmware will be released soon**
 
 
-### ANAMITHRA IS NOT ANAMITHRA GOVINDALAKSHMI IS ANAMITHRA 
