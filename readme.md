@@ -4,7 +4,7 @@ Technical Documentation: Modular Cyber-Physical Gateway (SBC Architecture)
 ```
 Current Status: Pre-prototying
 Version: v1.0.0 -beta
-
+```
 
 1\. System Overview
 -------------------
