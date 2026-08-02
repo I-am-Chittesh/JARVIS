@@ -12,6 +12,7 @@
 
 Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC, TFT_MOSI, TFT_CLK, TFT_RST, TFT_MISO);
 
+#define BTN_PWR 13 // NEW: Power Button
 #define BTN_A 14
 #define BTN_B 15
 #define ENC_SW 4
@@ -19,8 +20,8 @@ Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC, TFT_MOSI, TFT_CLK, TFT_R
 #define ENC_DT 3
 
 // --- STATE MACHINE ENUMS ---
-enum State { BOOT, MENU, TIMER_SELECT, TIMER_RUN, CAMERA, MEDIA };
-State currentState = BOOT;
+enum State { OFF, BOOT, MENU, TIMER_SELECT, TIMER_RUN, CAMERA, MEDIA };
+State currentState = OFF; // System starts in deep sleep
 
 // --- GLOBAL VARIABLES ---
 int menuIndex = 0;       
@@ -30,23 +31,36 @@ unsigned long timerStartMillis = 0;
 long lastSecondsRemaining = -1;
 int mediaVolume = 50;
 
-// --- HARDWARE STATE TRACKING (For Smooth Inputs) ---
-bool btnA_LastState = HIGH;
-bool btnB_LastState = HIGH;
-bool enc_LastState = HIGH;
+// Non-Blocking UI Timers
+unsigned long bootTime = 0;
+unsigned long uiTimer = 0;
+int uiSubState = 0; 
+
+// --- HARDWARE STATE TRACKING ---
+bool btnPwr_LastState = false;
+bool btnA_LastState = false;
+bool btnB_LastState = false;
+bool enc_LastState = false;
 int lastClkState;
 
 unsigned long btnB_PressTime = 0;
 bool btnB_LongPressTriggered = false;
 
-// Input Flags
+unsigned long btnPwr_PressTime = 0;
+bool btnPwr_ActionTriggered = false;
+
+// Input Flags (Fired once per action)
+bool btnPwr_ShortPress = false;
+bool btnPwr_LongPress = false;
 bool btnA_ShortPress = false;
 bool btnB_ShortPress = false;
 bool enc_ShortPress = false;
+int enc_Rotated = 0; 
 
 void setup() {
   Serial.begin(115200);
 
+  pinMode(BTN_PWR, INPUT_PULLUP);
   pinMode(BTN_A, INPUT_PULLUP);
   pinMode(BTN_B, INPUT_PULLUP);
   pinMode(ENC_SW, INPUT_PULLUP);
@@ -55,65 +69,40 @@ void setup() {
 
   tft.begin();
   tft.setRotation(0); 
-  tft.fillScreen(ILI9341_BLACK);
+  tft.fillScreen(ILI9341_BLACK); // Start with screen off
 
   lastClkState = digitalRead(ENC_CLK);
 }
 
 void loop() {
-  // --- 1. NON-BLOCKING INPUT POLLING & EDGE DETECTION ---
-  btnA_ShortPress = false;
-  btnB_ShortPress = false;
-  enc_ShortPress = false;
+  readInputs(); 
 
-  // Button A Edge Detection
-  bool btnA_State = digitalRead(BTN_A);
-  if (btnA_State == LOW && btnA_LastState == HIGH) {
-    btnA_ShortPress = true;
-  }
-  btnA_LastState = btnA_State;
-
-  // Encoder Switch Edge Detection
-  bool enc_State = digitalRead(ENC_SW);
-  if (enc_State == LOW && enc_LastState == HIGH) {
-    enc_ShortPress = true;
-  }
-  enc_LastState = enc_State;
-
-  // Button B (Short Press vs 2-Second Long Press)
-  bool btnB_State = digitalRead(BTN_B);
-  
-  if (btnB_State == LOW && btnB_LastState == HIGH) {
-    btnB_PressTime = millis();
-    btnB_LongPressTriggered = false;
-  }
-  
-  // Check for Long Press (Override to Menu)
-  if (btnB_State == LOW && !btnB_LongPressTriggered && (millis() - btnB_PressTime > 2000)) {
-    btnB_LongPressTriggered = true;
-    if (currentState != BOOT && currentState != MENU) {
-      currentState = MENU;
-      drawMenu();
-      btnB_LastState = btnB_State; 
+  // --- POWER MANAGEMENT LOGIC ---
+  if (currentState == OFF) {
+    // If asleep, only listen for a power button press to wake up
+    if (btnPwr_ShortPress || btnPwr_LongPress) {
+      drawBootScreen();
+      bootTime = millis();
+      currentState = BOOT;
+    }
+    return; // Block all other processing while OFF
+  } 
+  else {
+    // If awake, a long press on the power button puts it to sleep
+    if (btnPwr_LongPress) {
+      tft.fillScreen(ILI9341_BLACK); // Kill screen
+      currentState = OFF;
       return; 
     }
   }
-  
-  // Register Short Press only upon release if a long press didn't happen
-  if (btnB_State == HIGH && btnB_LastState == LOW) {
-    if (!btnB_LongPressTriggered) {
-      btnB_ShortPress = true; 
-    }
-  }
-  btnB_LastState = btnB_State;
 
-  // --- 2. FINITE STATE MACHINE (FSM) ---
+  // --- FINITE STATE MACHINE (FSM) ---
   switch (currentState) {
     case BOOT:
-      drawBootScreen();
-      delay(1000); // Sped up boot
-      currentState = MENU;
-      drawMenu();
+      if (millis() - bootTime > 1500) { 
+        currentState = MENU;
+        drawMenu();
+      }
       break;
 
     case MENU:
@@ -135,12 +124,93 @@ void loop() {
     case MEDIA:
       handleMediaLogic();
       break;
+      
+    case OFF:
+      // Handled above
+      break;
   }
 }
 
 // ==========================================
-// STATE: BOOT SCREEN
+// ZERO-LAG INPUT ENGINE
 // ==========================================
+void readInputs() {
+  btnPwr_ShortPress = false;
+  btnPwr_LongPress = false;
+  btnA_ShortPress = false;
+  btnB_ShortPress = false;
+  enc_ShortPress = false;
+  enc_Rotated = 0;
+
+  // 0. Power Button (Short Wake vs 1s Hold Sleep)
+  bool currentPwr = (digitalRead(BTN_PWR) == LOW);
+  if (currentPwr && !btnPwr_LastState) { 
+    btnPwr_PressTime = millis();
+    btnPwr_ActionTriggered = false;
+  } 
+  else if (currentPwr && btnPwr_LastState) { 
+    if (!btnPwr_ActionTriggered && (millis() - btnPwr_PressTime > 1000)) {
+      btnPwr_ActionTriggered = true; 
+      btnPwr_LongPress = true; // Triggers Sleep
+    }
+  } 
+  else if (!currentPwr && btnPwr_LastState) { 
+    if (!btnPwr_ActionTriggered) {
+      btnPwr_ShortPress = true; // Triggers Wake
+    }
+  }
+  btnPwr_LastState = currentPwr;
+
+  // If system is OFF, don't bother reading the rest of the inputs
+  if (currentState == OFF) return;
+
+  // 1. Button A (Triggers instantly on press)
+  bool currentA = (digitalRead(BTN_A) == LOW);
+  if (currentA && !btnA_LastState) btnA_ShortPress = true;
+  btnA_LastState = currentA;
+
+  // 2. Encoder Button (Triggers instantly on press)
+  bool currentEnc = (digitalRead(ENC_SW) == LOW);
+  if (currentEnc && !enc_LastState) enc_ShortPress = true;
+  enc_LastState = currentEnc;
+
+  // 3. Button B (Short Press vs 1.5s Long Press Override)
+  bool currentB = (digitalRead(BTN_B) == LOW);
+  
+  if (currentB && !btnB_LastState) { 
+    btnB_PressTime = millis();
+    btnB_LongPressTriggered = false;
+  } 
+  else if (currentB && btnB_LastState) { 
+    if (!btnB_LongPressTriggered && (millis() - btnB_PressTime > 1500)) {
+      btnB_LongPressTriggered = true; 
+      if (currentState != BOOT && currentState != MENU) {
+        currentState = MENU;
+        drawMenu();
+        uiSubState = 0; 
+      }
+    }
+  } 
+  else if (!currentB && btnB_LastState) { 
+    if (!btnB_LongPressTriggered) {
+      btnB_ShortPress = true; 
+    }
+  }
+  btnB_LastState = currentB;
+
+  // 4. Rotary Encoder Dial
+  int clkState = digitalRead(ENC_CLK);
+  if (clkState != lastClkState && clkState == HIGH) {
+    if (digitalRead(ENC_DT) != clkState) enc_Rotated = 1;  
+    else enc_Rotated = -1;                                 
+  }
+  lastClkState = clkState;
+}
+
+// ==========================================
+// UI DRAWING & LOGIC FUNCTIONS
+// ==========================================
+
 void drawBootScreen() {
   tft.fillScreen(ILI9341_BLACK);
   tft.setTextColor(ILI9341_CYAN);
@@ -149,9 +219,6 @@ void drawBootScreen() {
   tft.print("J.A.R.V.I.S.");
 }
 
-// ==========================================
-// STATE: MAIN MENU (Smooth Updating)
-// ==========================================
 void drawMenu() {
   tft.fillScreen(ILI9341_BLACK);
   tft.setTextColor(ILI9341_WHITE, ILI9341_BLACK);
@@ -177,33 +244,31 @@ void updateMenuCursor(int oldIdx, int newIdx) {
   String apps[3] = {"Focus Timer", "Optical Log", "Media Sync"};
   tft.setTextSize(2);
   
-  // Clear old cursor location
   tft.setCursor(30, 70 + (oldIdx * 40));
   tft.setTextColor(ILI9341_WHITE, ILI9341_BLACK);
   tft.print("  " + apps[oldIdx] + "  ");
   
-  // Draw new cursor location
   tft.setCursor(30, 70 + (newIdx * 40));
   tft.setTextColor(ILI9341_GREEN, ILI9341_BLACK);
   tft.print("> " + apps[newIdx] + "  ");
 }
 
 void handleMenuLogic() {
-  if (btnA_ShortPress) { // Move Up
+  if (btnA_ShortPress) { 
     int oldIdx = menuIndex;
     menuIndex--;
     if (menuIndex < 0) menuIndex = 2;
     updateMenuCursor(oldIdx, menuIndex);
   }
   
-  if (btnB_ShortPress) { // Move Down
+  if (btnB_ShortPress) { 
     int oldIdx = menuIndex;
     menuIndex++;
     if (menuIndex > 2) menuIndex = 0;
     updateMenuCursor(oldIdx, menuIndex);
   }
   
-  if (enc_ShortPress) { // Select
+  if (enc_ShortPress) { 
     if (menuIndex == 0) {
       currentState = TIMER_SELECT;
       drawTimerSelect();
@@ -217,9 +282,6 @@ void handleMenuLogic() {
   }
 }
 
-// ==========================================
-// APP 1: FOCUS TIMER (Smooth Updating)
-// ==========================================
 void drawTimerSelect() {
   tft.fillScreen(ILI9341_BLACK);
   tft.setTextSize(2);
@@ -244,7 +306,6 @@ void drawTimerSelect() {
 void updateTimerCursor(int oldIdx, int newIdx) {
   String timers[2] = {"Work (25:00)", "Rest (05:00)"};
   tft.setTextSize(2);
-  
   tft.setCursor(30, 80 + (oldIdx * 40));
   tft.setTextColor(ILI9341_WHITE, ILI9341_BLACK);
   tft.print("  " + timers[oldIdx] + "  ");
@@ -297,9 +358,6 @@ void handleTimerRunLogic() {
   }
 }
 
-// ==========================================
-// APP 2: OPTICAL LOGGING (CAMERA)
-// ==========================================
 void drawCameraReady() {
   tft.fillScreen(ILI9341_BLACK);
   tft.drawRect(20, 60, 200, 160, ILI9341_WHITE); 
@@ -315,26 +373,34 @@ void drawCameraReady() {
 }
 
 void handleCameraLogic() {
-  if (enc_ShortPress || btnA_ShortPress) {
-    tft.fillScreen(ILI9341_WHITE);
-    delay(50); // Faster shutter flash
-    tft.fillScreen(ILI9341_BLACK);
-    
-    tft.setTextColor(ILI9341_GREEN);
-    tft.setTextSize(2);
-    tft.setCursor(20, 140);
-    tft.print("[ CAPTURED ]");
-    tft.setCursor(20, 170);
-    tft.print("SYNCING...");
-    
-    delay(750); // Faster processing delay
-    drawCameraReady(); 
+  if (uiSubState == 0) { 
+    if (enc_ShortPress || btnA_ShortPress) {
+      tft.fillScreen(ILI9341_WHITE);
+      uiTimer = millis();
+      uiSubState = 1; 
+    }
+  } 
+  else if (uiSubState == 1) { 
+    if (millis() - uiTimer > 50) {
+      tft.fillScreen(ILI9341_BLACK);
+      tft.setTextColor(ILI9341_GREEN);
+      tft.setTextSize(2);
+      tft.setCursor(20, 140);
+      tft.print("[ CAPTURED ]");
+      tft.setCursor(20, 170);
+      tft.print("SYNCING...");
+      uiTimer = millis();
+      uiSubState = 2; 
+    }
+  } 
+  else if (uiSubState == 2) { 
+    if (millis() - uiTimer > 750) {
+      drawCameraReady(); 
+      uiSubState = 0; 
+    }
   }
 }
 
-// ==========================================
-// APP 3: MEDIA SYNC
-// ==========================================
 void drawMediaScreen() {
   tft.fillScreen(ILI9341_BLACK);
   tft.setTextColor(ILI9341_GREEN, ILI9341_BLACK);
@@ -369,8 +435,8 @@ void handleMediaLogic() {
     tft.setCursor(10, 120);
     tft.setTextColor(ILI9341_YELLOW);
     tft.print("-> NEXT TRACK");
-    delay(300); // Quick, non-obtrusive flash
-    tft.fillRect(10, 120, 200, 30, ILI9341_BLACK);
+    uiTimer = millis();
+    uiSubState = 1;
   }
   
   if (btnB_ShortPress) {
@@ -378,20 +444,21 @@ void handleMediaLogic() {
     tft.setCursor(10, 120);
     tft.setTextColor(ILI9341_YELLOW);
     tft.print("<- PREV TRACK");
-    delay(300);
-    tft.fillRect(10, 120, 200, 30, ILI9341_BLACK);
+    uiTimer = millis();
+    uiSubState = 1;
   }
 
-  int clkState = digitalRead(ENC_CLK);
-  if (clkState != lastClkState && clkState == HIGH) {
-    if (digitalRead(ENC_DT) != clkState) {
-      mediaVolume += 5;
-    } else {
-      mediaVolume -= 5;
-    }
+  if (uiSubState == 1 && (millis() - uiTimer > 300)) {
+    tft.fillRect(10, 120, 200, 30, ILI9341_BLACK);
+    uiSubState = 0;
+  }
+
+  if (enc_Rotated != 0) {
+    if (enc_Rotated == 1) mediaVolume += 5;
+    else mediaVolume -= 5;
+    
     if (mediaVolume > 100) mediaVolume = 100;
     if (mediaVolume < 0) mediaVolume = 0;
     drawMediaVolume();
   }
-  lastClkState = clkState;
 }
