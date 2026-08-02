@@ -47,6 +47,8 @@ The device eliminates fixed buttons for fixed tasks. The internal execution laye
 *   **Button A:** Transitions the system into _Functional State 1_.
     
 *   **Button B:** Transitions the system into _Functional State 2_.
+
+
     
 
 ### Functional State 1: System Regulation (Custom App Compatible)
