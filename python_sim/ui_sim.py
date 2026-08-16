@@ -4,9 +4,18 @@ import time
 
 # --- INITIALIZATION ---
 pygame.init()
-WIDTH, HEIGHT = 480, 640
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("J.A.R.V.I.S. UI Simulator - Patent PoW")
+
+# The real hardware resolution (what the Pi Zero computes)
+REAL_WIDTH, REAL_HEIGHT = 480, 640
+# The simulated window size for your PC monitor (Half size, approx 2.8 inches physical)
+SIM_WIDTH, SIM_HEIGHT = 240, 320
+
+# Create the actual Windows window (smaller)
+window = pygame.display.set_mode((SIM_WIDTH, SIM_HEIGHT))
+pygame.display.set_caption("J.A.R.V.I.S. UI Simulator")
+
+# Create a virtual surface at the real hardware resolution
+screen = pygame.Surface((REAL_WIDTH, REAL_HEIGHT))
 
 # --- COLORS (High-Contrast Cyberpunk) ---
 BLACK = (10, 10, 10)
@@ -17,7 +26,6 @@ YELLOW = (255, 204, 0)
 DARK_GREY = (50, 50, 50)
 
 # --- FONTS ---
-# Using default system fonts for plug-and-play capability
 font_large = pygame.font.SysFont("consolas", 64, bold=True)
 font_medium = pygame.font.SysFont("consolas", 32, bold=True)
 font_small = pygame.font.SysFont("consolas", 24)
@@ -128,12 +136,12 @@ while True:
         if current_state not in [STATE_BOOT, STATE_MENU]:
             current_state = STATE_MENU
             is_timer_running = False
-            b_key_is_down = False # Reset trigger
+            b_key_is_down = False 
 
-    # 3. DRAWING FSM STATES
+    # 3. DRAWING FSM STATES (Drawing to the virtual screen)
     if current_state == STATE_BOOT:
-        draw_text(screen, "J.A.R.V.I.S.", font_large, CYAN, WIDTH//2, HEIGHT//2 - 20, center=True)
-        draw_text(screen, "CYBER-PHYSICAL GATEWAY", font_small, WHITE, WIDTH//2, HEIGHT//2 + 30, center=True)
+        draw_text(screen, "J.A.R.V.I.S.", font_large, CYAN, REAL_WIDTH//2, REAL_HEIGHT//2 - 20, center=True)
+        draw_text(screen, "CYBER-PHYSICAL GATEWAY", font_small, WHITE, REAL_WIDTH//2, REAL_HEIGHT//2 + 30, center=True)
         if current_time - state_start_time > 1.5:
             current_state = STATE_MENU
 
@@ -165,8 +173,8 @@ while True:
             mins, secs = divmod(rem, 60)
             
             title = "FOCUS: WORK" if timer_idx == 0 else "FOCUS: REST"
-            draw_text(screen, title, font_medium, WHITE, WIDTH//2, 100, center=True)
-            draw_text(screen, f"{mins:02d}:{secs:02d}", font_large, CYAN, WIDTH//2, HEIGHT//2, center=True)
+            draw_text(screen, title, font_medium, WHITE, REAL_WIDTH//2, 100, center=True)
+            draw_text(screen, f"{mins:02d}:{secs:02d}", font_large, CYAN, REAL_WIDTH//2, REAL_HEIGHT//2, center=True)
 
     elif current_state == STATE_CAMERA:
         if camera_flash:
@@ -175,11 +183,11 @@ while True:
                 camera_flash = False
         else:
             pygame.draw.rect(screen, WHITE, (40, 100, 400, 320), 2)
-            draw_text(screen, camera_status, font_medium, YELLOW, WIDTH//2, 50, center=True)
+            draw_text(screen, camera_status, font_medium, YELLOW, REAL_WIDTH//2, 50, center=True)
             if camera_status == "SYNCING..." and (current_time - camera_flash_time > 1.5):
                 camera_status = "CAMERA READY"
             
-            draw_text(screen, "PRESS ENCODER TO SHUTTER", font_small, WHITE, WIDTH//2, 470, center=True)
+            draw_text(screen, "PRESS ENCODER TO SHUTTER", font_small, WHITE, REAL_WIDTH//2, 470, center=True)
 
     elif current_state == STATE_MEDIA:
         draw_text(screen, "NOW PLAYING", font_medium, GREEN, 20, 30)
@@ -193,5 +201,10 @@ while True:
         pygame.draw.rect(screen, WHITE, (20, 450, 440, 30), 2)
         pygame.draw.rect(screen, CYAN, (22, 452, int(436 * (media_vol/100)), 26))
 
+    # --- THE MAGIC SCALING TRICK ---
+    # Shrink the massive virtual screen down to the small window size
+    scaled_screen = pygame.transform.smoothscale(screen, (SIM_WIDTH, SIM_HEIGHT))
+    window.blit(scaled_screen, (0, 0))
+
     pygame.display.flip()
-    clock.tick(60) # 60 FPS for buttery smooth rendering
+    clock.tick(60)
