@@ -92,4 +92,4 @@ While Wokwi handles microcontrollers rather than full Linux SBCs, it perfectly d
         
     *   _Mode 1 (State 1 Active):_ Pressing Button A clears the screen to display the custom system timer UI. The encoder now explicitly updates the timer value instead of standard system controls.
         
-    *   _Mode 2 (State 2 Active):_ Pressing Button B shifts the UI to an imaging preview frame, where pressing the encoder triggers a dedicated digital pin (lighting a virtual LED) to prove camera capture sync.
+    *   _Mode 2 (State 2 Active):_ Pressing Button B shifts the UI to an imaging preview frame, where pressing the encoder triggers a dedicated digital pin (lighting a virtual LED) to prove camera capture sync.ssdf
