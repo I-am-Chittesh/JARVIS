@@ -63,7 +63,7 @@ def media_sync():
 
 if __name__ == '__main__':
     print("===================================================")
-    print(" J.A.R.V.I.S. DAEMON ACTIVE")
+    print(" J.A.R.V.I.S. ACTIVE")
     print(" Awaiting hardware interrupts...")
     print("===================================================")
     app.run(host='0.0.0.0', port=5000)
