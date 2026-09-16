@@ -4,20 +4,28 @@ import google.generativeai as genai
 import PIL.Image
 from dotenv import load_dotenv
 
-# Securely load the hidden variables from the .env file
-load_dotenv()
+# 1. Get the exact folder this script is living in (optical_sim)
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+# 2. Get the main JARVIS folder (one level up) to find the API key
+ROOT_DIR = os.path.dirname(SCRIPT_DIR)
+
+# Securely load the .env from the root folder
+load_dotenv(os.path.join(ROOT_DIR, ".env"))
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
-def process_optical_log(image_path):
+def process_optical_log(image_name):
+    # 3. Force Python to look in the optical_sim folder for the image
+    image_path = os.path.join(SCRIPT_DIR, image_name)
+    
     print(f"[!] HARDWARE TRIGGER: Optical Log Captured -> {image_path}")
     print("[*] SYNCING: Transmitting to Vision Engine...")
     
     try:
         img = PIL.Image.open(image_path)
     except FileNotFoundError:
-        print("[ERROR] No image found. Save a photo as 'test_capture.jpg' first.")
+        print(f"[ERROR] No image found at: {image_path}")
         return
-    
+        
     model = genai.GenerativeModel('gemini-1.5-flash')
     
     prompt = """
