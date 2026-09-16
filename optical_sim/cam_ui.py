@@ -2,7 +2,10 @@ import os
 import json
 import google.generativeai as genai
 import PIL.Image
+from dotenv import load_dotenv
 
+# Securely load the hidden variables from the .env file
+load_dotenv()
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
 def process_optical_log(image_path):
@@ -29,7 +32,6 @@ def process_optical_log(image_path):
     
     print("\n[>] SYNC COMPLETE. Database Entry Generated:")
     
-    # Validating the output is clean JSON
     try:
         parsed_data = json.loads(response.text.strip())
         print(json.dumps(parsed_data, indent=4))
