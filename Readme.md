@@ -1,4 +1,4 @@
-Technical Documentation: Modular Cyber-Physical Gateway (SBC Architecture)
+Technical Documentation: Modular Cyber-Deck
 ==========================================================================
 
 ```
