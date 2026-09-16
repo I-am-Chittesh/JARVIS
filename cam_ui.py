@@ -3,7 +3,6 @@ import json
 import google.generativeai as genai
 import PIL.Image
 
-# Pulls the API key securely from your environment
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
 def process_optical_log(image_path):
@@ -16,10 +15,8 @@ def process_optical_log(image_path):
         print("[ERROR] No image found. Save a photo as 'test_capture.jpg' first.")
         return
     
-    # gemini-1.5-flash is optimized for high-speed multimodal extraction
     model = genai.GenerativeModel('gemini-1.5-flash')
     
-    # Prompting the model to act as a strict JSON data formatter
     prompt = """
     You are a backend processing engine for a screenless hardware device.
     Analyze this image. 
