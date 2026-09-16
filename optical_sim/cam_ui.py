@@ -40,4 +40,4 @@ def process_optical_log(image_path):
         print(response.text)
 
 if __name__ == "__main__":
-    process_optical_log("test_capture.jpg")
+    process_optical_log("test_capture.png")
