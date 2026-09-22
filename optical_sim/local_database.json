@@ -1,0 +1,1 @@
+{"timestamp": "2026-09-22T13:55:10Z", "device": "jarvis_edge_node_01", "action": "optical_shutter", "telemetry": {"original_resolution": "457x325", "hardware_target": "ILI9341_TFT (240x320)", "original_kb": 244.7, "optimized_kb": 19.92}, "status": "LOCAL_SYNC_SUCCESS"}
