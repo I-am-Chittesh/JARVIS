@@ -2,22 +2,22 @@ import pygame
 import sys
 import time
 
-# --- INITIALIZATION ---
+
 pygame.init()
 
-# The real hardware resolution (what the Pi Zero computes)
+
 REAL_WIDTH, REAL_HEIGHT = 480, 640
-# The simulated window size for your PC monitor (Half size, approx 2.8 inches physical)
+
 SIM_WIDTH, SIM_HEIGHT = 240, 320
 
-# Create the actual Windows window (smaller)
+
 window = pygame.display.set_mode((SIM_WIDTH, SIM_HEIGHT))
 pygame.display.set_caption("J.A.R.V.I.S. UI Simulator")
 
-# Create a virtual surface at the real hardware resolution
+
 screen = pygame.Surface((REAL_WIDTH, REAL_HEIGHT))
 
-# --- COLORS (High-Contrast Cyberpunk) ---
+
 BLACK = (10, 10, 10)
 CYAN = (0, 255, 204)
 GREEN = (57, 255, 20)
@@ -25,12 +25,10 @@ WHITE = (240, 240, 240)
 YELLOW = (255, 204, 0)
 DARK_GREY = (50, 50, 50)
 
-# --- FONTS ---
+
 font_large = pygame.font.SysFont("consolas", 64, bold=True)
 font_medium = pygame.font.SysFont("consolas", 32, bold=True)
 font_small = pygame.font.SysFont("consolas", 24)
-
-# --- FSM STATES ---
 STATE_BOOT = 0
 STATE_MENU = 1
 STATE_TIMER = 2
