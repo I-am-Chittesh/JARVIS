@@ -14,21 +14,17 @@ def run_optical_ui(image_name):
         print(f"[ERROR] Cannot find {image_path}")
         return
 
-    # 1. Process the Image specifically for the ILI9341 TFT Screen
     with Image.open(image_path) as img:
         width, height = img.size
         original_kb = round(os.path.getsize(image_path) / 1024, 2)
         
-        # Convert to Grayscale and resize to fit the 240x320 hardware constraint
         optimized_img = img.convert("L") 
-        optimized_img.thumbnail((220, 260)) # Slightly smaller than 240x320 to fit the borders
+        optimized_img.thumbnail((220, 260))
         optimized_img.save(processed_img_path, format="PNG", optimize=True)
         new_kb = round(os.path.getsize(processed_img_path) / 1024, 2)
         
-        # Load the newly optimized image to display on our simulator screen
         display_img = Image.open(processed_img_path)
 
-    # 2. Build the Payload and Save to DB (Runs silently in the background)
     payload = {
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "device": "jarvis_edge_node_01",
