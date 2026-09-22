@@ -5,12 +5,11 @@ from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
-# Windows System Hosts File (Requires Admin Privileges)
 HOSTS_PATH = r"C:\Windows\System32\drivers\etc\hosts"
 REDIRECT_IP = "127.0.0.1"
 BLOCKED_DOMAINS = ["www.youtube.com", "youtube.com", "www.instagram.com", "instagram.com", "x.com"]
 
-# --- PATENT CLAIM 1: HARDWARE-ENFORCED REGULATION ---
+
 @app.route('/api/focus/start', methods=['POST'])
 def engage_focus_lock():
     try:
