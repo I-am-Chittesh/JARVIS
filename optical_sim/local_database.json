@@ -1,2 +1,0 @@
-{"timestamp": "2026-09-22T07:04:16Z", "device": "jarvis_edge_node_01", "telemetry": {"original_resolution": "457x325", "original_size_kb": 244.7, "optimized_file": "optimized_capture.png", "bandwidth_saved_kb": 173.44}, "status": "LOCAL_SYNC_SUCCESS"}
-{"timestamp": "2026-09-22T07:05:58Z", "device": "jarvis_edge_node_01", "action": "optical_shutter", "telemetry": {"resolution": "457x325", "original_kb": 244.7, "optimized_kb": 26.25, "bandwidth_saved": 218.45}, "status": "LOCAL_SYNC_SUCCESS"}
